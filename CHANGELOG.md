@@ -54,3 +54,20 @@ This version marks a significant change in the script's purpose. It has been ref
 *   **Strictly Local**: The script's sole purpose is now to detect existing installations of Google Chrome (Stable or Canary) on the user's operating system (macOS, Windows, and Linux).
 *   **Refined Linux Search**: The search on Linux is now more specific, targeting only `google-chrome-stable` and `google-chrome` to avoid accidentally picking up community-maintained Chromium builds.
 *   **Error Handling**: If no installation is found, the script will throw a more specific error on Linux and return an empty object on all platforms, with no fallback to a download.
+
+## update lib/rpc_process
+How They Work Together (The Full Picture)
+Parent Process (main.js) calls spawn('./worker.js', parentHandle):
+rpc_process.spawn creates a new Node.js process running worker.js.
+It defines a transport that wires up child.on('message', ...) and child.send(...).
+It calls rpc.createWorld(transport, parentHandle).
+rpc.js now has a way to send and receive messages from this new child world. It sends an initialization "cookie" message.
+Child Process (worker.js) calls init(initializerFunction):
+rpc_process.init defines its own transport that wires up process.on('message', ...) and process.send(...).
+It calls rpc.initWorld(transport, initializerFunction).
+The child's rpc.js instance receives the "cookie" message from the parent, unpacks the parentHandle, and calls the initializerFunction with it.
+The initializerFunction creates a new Child object, gets a handle to it with rpc.handle(), and returns it.
+rpc.initWorld sends this childHandle back to the parent as a response.
+Parent Process Receives the childHandle:
+The Promise from the original rpc.createWorld call resolves, returning the childHandle.
+The parent and child are now fully connected. When the parent calls a method on childHandle, rpc.js uses the transport (i.e., child.send) to send the message, and the child's rpc.js receives it and executes the method on the actual Child object.
