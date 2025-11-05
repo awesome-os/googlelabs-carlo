@@ -20,3 +20,37 @@ Request Interception: The Network.requestIntercepted event and Network.setReques
 ES6+ and Modern Practices: The code has been updated to use more modern JavaScript features like async/await more consistently and object destructuring for cleaner code.
 Error Handling and Optional Chaining: Added optional chaining (?.) for CDP session calls to prevent errors if the session is not available, and included more robust error handling in launch.
 HttpRequest Class Adaptation (Assumption): The HttpRequest class, which was not provided, would need to be refactored. The original code passed a CDP payload to its constructor. The upgraded version passes the modern Puppeteer HTTPRequest object, which has methods like continue(), respond(), and abort(). The handleRequest_ method has been updated to use these new methods.
+
+## update lib/findChrome
+Of course. Here is a changelog for the `findChrome.js` script, detailing the transition from a find-or-download utility to a strict finder for system-installed Google Chrome.
+
+---
+
+### Changelog: `findChrome.js`
+
+#### **v2.0.0 (Breaking Change)**
+
+This version marks a significant change in the script's purpose. It has been refactored to **exclusively find local, system-installed versions of Google Chrome**. All functionality related to downloading pre-built Chromium binaries has been completely removed to ensure that only official, user-managed installations are used.
+
+---
+
+#### 💥 **BREAKING CHANGES**
+
+*   **No More Downloads**: The script will no longer download Chromium from the web. If a local installation of Google Chrome is not found, the script will return an empty result instead of attempting to fetch a binary. This is a fundamental change in behavior.
+*   The `channel` options `'chromium'` and `'r<revision>'` are no longer supported as they were tied to the download functionality.
+
+---
+
+#### ⛔ **Removed**
+
+*   **Chromium Download Logic**: Removed the `downloadChromium` function and all associated logic that used Puppeteer's `BrowserFetcher` API.
+*   **Puppeteer Dependency**: The script no longer requires `puppeteer-core` as a dependency, making it a more lightweight and standalone utility.
+*   **Chromium-Browser Search (Linux)**: The search paths and executable names for open-source `chromium` and `chromium-browser` on Linux have been removed to focus exclusively on official `google-chrome` installations.
+
+---
+
+#### 🔄 **Changed**
+
+*   **Strictly Local**: The script's sole purpose is now to detect existing installations of Google Chrome (Stable or Canary) on the user's operating system (macOS, Windows, and Linux).
+*   **Refined Linux Search**: The search on Linux is now more specific, targeting only `google-chrome-stable` and `google-chrome` to avoid accidentally picking up community-maintained Chromium builds.
+*   **Error Handling**: If no installation is found, the script will throw a more specific error on Linux and return an empty object on all platforms, with no fallback to a download.
