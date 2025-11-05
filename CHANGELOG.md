@@ -71,3 +71,135 @@ rpc.initWorld sends this childHandle back to the parent as a response.
 Parent Process Receives the childHandle:
 The Promise from the original rpc.createWorld call resolves, returning the childHandle.
 The parent and child are now fully connected. When the parent calls a method on childHandle, rpc.js uses the transport (i.e., child.send) to send the message, and the child's rpc.js receives it and executes the method on the actual Child object.
+
+
+## tests/*
+
+Excellent question. The `@pptr/testrunner` was an early, lightweight test runner developed by the Puppeteer team. It was never intended for widespread public use and has long been superseded by mature, powerful, and well-supported testing frameworks in the JavaScript ecosystem.
+
+For your use case, the best replacement is **Jest**.
+
+It is the most popular, "all-in-one" testing framework in the Node.js world. It provides a test runner, an assertion library (`expect`), and mocking capabilities out of the box. Its API is almost identical to the `@pptr/testrunner` you were using, making the migration incredibly straightforward.
+
+---
+
+### Why Jest is the Ideal Replacement
+
+*   **Nearly Identical API**: `describe`, `it`, `fit` (as `it.only`), `beforeAll`, `afterAll`, and `expect` all work the same way.
+*   **Zero Configuration**: Jest works out of the box for most Node.js projects.
+*   **Excellent Async Support**: It has first-class support for `async/await`, which is essential for testing applications like Carlo.
+*   **Huge Community & Ecosystem**: It's widely used, well-documented, and has plugins for almost any scenario.
+*   **"It Just Works"**: Jest handles test discovery, running tests, and reporting results automatically.
+
+### Migrating Your Test from `@pptr/testrunner` to Jest
+
+Here is your original test, rewritten for Jest. As you can see, almost nothing has to change in the test logic itself.
+
+#### Original Test (`@pptr/testrunner`)
+
+```javascript
+// Old test using @pptr/testrunner
+const {TestRunner, Reporter, Matchers} = require('@pptr/testrunner');
+const {expect} = new Matchers();
+const testRunner = new TestRunner();
+const {describe, fit} = testRunner;
+const carlo = require('../lib/carlo');
+
+describe('app reuse', () => {
+  fit('load returns value', async() => {
+    // ... test logic ...
+  });
+});
+
+new Reporter(testRunner);
+testRunner.run();
+```
+
+#### Migrated Test (Jest)
+
+Let's assume you save this file as `app.test.js`.
+
+```javascript
+// New test using Jest
+// No test runner setup is needed in the file! Jest handles it.
+
+const carlo = require('../lib/carlo');
+
+// Set a longer timeout for this test suite if needed.
+// Jest's default is 5 seconds. This increases it to 30 seconds.
+jest.setTimeout(30000);
+
+describe('app reuse', () => {
+  let app;
+
+  // Jest's `afterEach` hook to ensure the app is closed after the test.
+  afterEach(async () => {
+    if (app) {
+      await app.exit();
+      app = null;
+    }
+  });
+
+  // `fit` is replaced by `it.only` to run a single test.
+  // For a normal test, just use `it`.
+  it.only('a second launch attempt should pass params to the original window', async () => {
+    app = await carlo.launch();
+
+    let newWindow;
+    const windowPromise = new Promise(resolve => newWindow = resolve);
+    app.on('window', newWindow);
+
+    // Jest has built-in support for testing promises and errors.
+    await expect(carlo.launch({ paramsForReuse: { val: 42 } }))
+      .rejects.toThrow('already running');
+
+    const window = await windowPromise;
+    expect(window.paramsForReuse()).toEqual({ val: 42 });
+  });
+});
+```
+
+**Key Changes:**
+
+1.  **No More Runner Boilerplate**: All the `TestRunner`, `Reporter`, and `testRunner.run()` code is gone. Jest handles this automatically.
+2.  **`fit` to `it.only`**: The direct equivalent of `fit` (focus it) in Jest is `it.only`. For a regular test, you would use `it`.
+3.  **Improved Error Testing**: Instead of a `try...catch` block, Jest has a much cleaner `expect(...).rejects.toThrow()` syntax for testing promises that should fail.
+4.  **Cleanup with `afterEach`**: It's good practice to use Jest's setup and teardown hooks (`beforeAll`, `afterEach`, etc.) to ensure a clean state between tests. Here, we ensure `app.exit()` is always called.
+5.  **`toEqual` for Objects**: For comparing objects and arrays, `.toEqual()` is preferred over checking a stringified version as it performs a deep equality check.
+
+### How to Set Up and Run with Jest
+
+1.  **Install Jest**:
+    ```bash
+    npm install --save-dev jest
+    ```
+
+2.  **Update `package.json`**: Add a `test` script.
+    ```json
+    {
+      "scripts": {
+        "test": "jest"
+      }
+    }
+    ```
+
+3.  **Run Tests**:
+    ```bash
+    npm test
+    ```
+
+Jest will automatically find any files ending in `.test.js` or `.spec.js` and run them.
+
+---
+
+### Other Modern Alternatives
+
+While Jest is the top recommendation, here are other excellent choices:
+
+| Framework       | Description                                                                                             | Why Choose It?                                                                      |
+| --------------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| **Jest**        | **(Top Recommendation)** All-in-one runner, assertion library, and mocking.                             | You want a battle-tested, popular, and easy-to-use solution with a similar API.     |
+| **Vitest**      | A modern, blazing-fast test runner with a Jest-compatible API, built on top of Vite.                      | You are starting a new project, value speed, and want a modern toolchain (ESM-first). |
+| **Mocha + Chai**  | A classic combination. Mocha is a flexible test runner, and Chai is a powerful assertion library.         | You prefer a more modular approach and want to choose and configure your own tools.   |
+
+For your situation, moving from `@pptr/testrunner`, **Jest** provides the smoothest transition and the most robust feature set for immediate productivity.
