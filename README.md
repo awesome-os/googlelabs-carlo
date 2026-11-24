@@ -130,3 +130,13 @@ Chrome Stable channel, versions 70.* are supported.
 
 
 <!-- [END faq] -->
+
+## Quick Install & Run (Windows / Linux / macOS)
+
+```sh
+# Install globally via awesome-os/pnpm (all platforms)
+pnpm add -g github:awesome-os/googlelabs-carlo
+
+# Run directly (all platforms)
+googlelabs-carlo --help
+```
